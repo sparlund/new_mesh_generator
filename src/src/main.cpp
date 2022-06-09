@@ -2,112 +2,149 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
+#include <memory>
+#include <unordered_map>
 
 class Point
 {
 public:
+    static size_t id_counter;
     double x,y;
     double normalized_x,normalized_y;
     size_t id;
-    Point(double x = 0.0d, double y = 0.0d):x(x), y(y){};
+    Point(double x = 0.0d, double y = 0.0d):x(x), y(y)
+    {
+        id = id_counter;
+        id_counter++;
+    };
     Point& operator=(const Point&) = default;
-    ~Point() = default;
+    ~Point()
+    {
+        std::cout << "deleting point with id = " << id << std::endl;
+    };
     bool operator==(const Point& rhs)
     {
         return id == rhs.id;
     }
-    friend std::ostream& operator<<(std::ostream& os, const Point& P);
+    friend std::ostream& operator<<(std::ostream& os, Point* P);
 };
-std::ostream& operator<<(std::ostream& os, const Point& P)
+size_t Point::id_counter = 0;
+std::ostream& operator<<(std::ostream& os, Point* P)
 {
-    os << "("<< P.x << ", " << P.y << ")";
+    os << "("<< P->x << ", " << P->y << ")";
 }
 class Triangle
 {
 public:
-        Point A, B, C;
-        std::vector<Point> points;
+        Point* A;
+        Point* B;
+        Point* C;
+        size_t id;
+        static size_t triangle_counter;
         std::vector<size_t> point_ids;
-        Triangle(Point A = Point{}, Point B = Point{}, Point C = Point{}) : A(A), B(B), C(C)
+        Triangle(Point* A_, Point* B_, Point* C_)
         {
-            points.push_back(A);
-            points.push_back(B);
-            points.push_back(C);
-            point_ids.push_back(A.id);
-            point_ids.push_back(B.id);
-            point_ids.push_back(C.id);
+            std::cout << "triangle ctor" << std::endl;
+            A = A_;
+            B = B_;
+            C = C_;
+            id = triangle_counter;
+            triangle_counter++;
+            std::cout << "triangle counter = " << triangle_counter << std::endl;
+            std::cout << "triangle id = " << id << std::endl;
+            point_ids.emplace_back(A->id);
+            point_ids.emplace_back(B->id);
+            point_ids.emplace_back(C->id);
         };
-        Triangle& operator=(const Triangle&) = default;
-        ~Triangle() = default;
-        friend std::ostream& operator<<(std::ostream& os, const Triangle& T);
+        Triangle& operator=(const Triangle&) = delete;
+        ~Triangle()
+        {
+            std::cout << "deleting triangle with id = " << id << std::endl;
+        };
+        friend std::ostream& operator<<(std::ostream& os, Triangle* T);
 };
-std::ostream& operator<<(std::ostream& os, const Triangle& T)
+size_t Triangle::triangle_counter = 0;
+std::ostream& operator<<(std::ostream& os, Triangle* T)
 {
-    os << T.A << ", " << T.B << ", " << ", " << T.C; 
+    os << "Triangle id = " << T->id << ":\n  " << T->A->x << ", " << T->A->y << "\n  " << T->B->x << ", " << T->B->y << "\n  " << T->C->x << ", " << T->C->y << std::endl;
 }
 
 class Edge
 {
 public:
-    Point A, B;
-    Edge(Point A, Point B) : A(A), B(B) {};
+    Point* A;
+    Point* B;
+    Edge(Point* A_, Point* B_)
+    {
+        A = A_;
+        B = B_;
+    };
     ~Edge() = default;
 };
 
 
 class Mesh
 {
-private:
-        void add_point(Point p)
-        {
-            points.emplace_back(Point{p.x, p.y});
-            if(p.x > x_max)
-            {
-                x_max = p.x;
-            }
-            if(p.y > y_max)
-            {
-                y_max = p.y;
-            }
-            if(p.x < x_min)
-            {
-                x_min = p.x;
-            }
-            if(p.y < y_min)
-            {
-                y_min = p.y;
-            }
-        }
 public:
-        std::vector<std::unique_ptrPoint> points;
-        std::vector<std::unique_ptr<Triangle>> triangles;
-        std::vector<Edge> edges;
-        Triangle superTriangle;
-        double x_max = 0, y_max = 0, x_min = 0, y_min = 0;
-        Mesh() = default;
-        ~Mesh() = default;
-        void add_triangle(Point A, Point B, Point C)
+        void add_point(double x, double y)
         {
-            auto t = Triangle{A, B, C};
-            triangles.push_back(t);
+            if(x > x_max)
+            {
+                x_max = x;
+            }
+            if(y > y_max)
+            {
+                y_max = y;
+            }
+            if(x < x_min)
+            {
+                x_min = x;
+            }
+            if(y < y_min)
+            {
+                y_min = y;
+            }
+            auto temp = std::make_unique<Point>(x, y);
+            id_2_point[temp->id] = temp.get();
+            points.emplace_back(std::move(temp));
         }
+        std::unordered_map<size_t, Point*>      id_2_point;
+        std::vector<std::unique_ptr<Point>>     points;
+        std::vector<std::unique_ptr<Triangle>>  triangles;
+        std::vector<std::unique_ptr<Edge>>      edges;
+        double x_max = 0, y_max = 0, x_min = 0, y_min = 0;
+        Mesh() {};
+        ~Mesh() = default;
         void normalize(std::vector<Point>& points)
         {
         }
         void init_superTriangle()
         {
-            double x_mid = (x_max + x_max)/2.0d;
-            double y_mid = (y_max + y_max)/2.0d;
+            double x_mid = (x_max + x_min)/2.0d;
+            double y_mid = (y_max + y_min)/2.0d;
             double dx = x_max - x_min;
             double dy = y_max - y_min;
-            double dmax = (dx > dy ? dx : dy) * 20.0d;
-            auto A = Point{x_mid - dmax, y_mid - dmax};
-            auto B = Point{x_mid, y_mid + dmax};
-            auto C = Point{x_mid + dmax, y_mid - dmax};
-            superTriangle.A = A;
-            superTriangle.B = B;
-            superTriangle.C = C;
-            triangles.push_back(superTriangle);
+            double dmax = (dx > dy ? dx : dy);
+            // std::cout << "x_mid = " << x_mid << std::endl;
+            // std::cout << "y_mid = " << y_mid << std::endl;
+            // std::cout << "dx = " << dx << std::endl;
+            // std::cout << "dy = " << dy << std::endl;
+            // std::cout << "dmax = " << dmax << std::endl;
+            // Create three points for vertices of the super triangle. Treat it as a normal triangle.
+            // We will delete it later.
+            auto A = std::make_unique<Point>(x_mid - (2*dmax), y_mid - dmax);
+            auto B = std::make_unique<Point>(x_mid, y_mid + (2*dmax));
+            auto C = std::make_unique<Point>(x_mid + (2*dmax), y_mid - dmax);
+            auto super_triangle = std::make_unique<Triangle>(A.get(), B.get(), C.get());
+            id_2_point[A->id] = A.get();
+            id_2_point[B->id] = B.get();
+            id_2_point[C->id] = C.get();
+            std::cout << "superTriangle:\n" << super_triangle.get() << std::endl;
+            points.emplace_back(std::move(A));
+            points.emplace_back(std::move(B));
+            points.emplace_back(std::move(C));
+            triangles.emplace_back(std::move(super_triangle));
+
         }
         void print()
         {
@@ -115,42 +152,52 @@ public:
 
             for (const auto& point: points)
             {
-                std::cout << point << std::endl;
+                std::cout << point.get() << std::endl;
             }
+        }
+        bool is_point_in_circle(Point* P_, Triangle* T)
+        {
+            // is a point D in the circumference of the circles created by points A, B and C?
+            // A, B & C refers to the three points of triangle T
             
-            std::cout << "superTriangle:\n" << superTriangle << std::endl;
 
+            std::cout << "T->A->id = " << T->A->id << std::endl;
+            std::cout << "T->B->id = " << T->B->id << std::endl;
+            std::cout << "T->C->id = " << T->C->id << std::endl;
+            std::cout << "P_->id = "    << P_->id << std::endl;
+            for (auto const &pair: id_2_point)
+            {
+                std::cout << "{" << pair.first << ": " << pair.second << "}\n";
+            }
+            auto A = id_2_point[T->A->id];
+            auto B = id_2_point[T->B->id];
+            auto C = id_2_point[T->C->id];
+            auto P = id_2_point[P_->id];
+            const double dx = A->x - P->x;
+            const double dy = A->y - P->y;
+            const double ex = B->x - P->x;
+            const double ey = B->y - P->y;
+            const double fx = C->x - P->x;
+            const double fy = C->y - P->y;
+            
+            const double ap = dx * dx + dy * dy;
+            const double bp = ex * ex + ey * ey;
+            const double cp = fx * fx + fy * fy;
+            return (dx * (ey * cp - bp * fy) -
+                    dy * (ex * cp - bp * fx) +
+                    ap * (ex * fy - ey * fx)) < 0.0d;
         }
 };
 
-bool is_point_in_circle(const Point& P, const Triangle& T)
-{
-    // is a point D in the circumference of the circles created by points A, B and C?
-    // A, B & C refers to the three points of triangle T
-    const double dx = T.A.x - P.x;
-    const double dy = T.A.y - P.y;
-    const double ex = T.B.x - P.x;
-    const double ey = T.B.y - P.y;
-    const double fx = T.C.x - P.x;
-    const double fy = T.C.y - P.y;
-    
-    const double ap = dx * dx + dy * dy;
-    const double bp = ex * ex + ey * ey;
-    const double cp = fx * fx + fy * fy;
-    return (dx * (ey * cp - bp * fy) -
-            dy * (ex * cp - bp * fx) +
-            ap * (ex * fy - ey * fx)) < 0.0d;
-}
 
 // https://www.newcastle.edu.au/__data/assets/pdf_file/0019/22519/23_A-fast-algortithm-for-generating-constrained-Delaunay-triangulations.pdf
 
 int main(int argc, char const *argv[])
 {
-    Point A{0.0d,0.0d}, B{1.0d,0.0d}, C{0.5d, 1.0d}, D{1.0d,1.0d};
     Mesh mesh;
-    mesh.add_point(A);
-    mesh.add_point(B);
-    mesh.add_point(C);
+    mesh.add_point(0.0d,0.0d);
+    mesh.add_point(1.0d,0.0d);
+    mesh.add_point(0.5d, 1.0d);
     // mesh.add_point(D);
     mesh.init_superTriangle();
     mesh.print();
@@ -174,69 +221,81 @@ int main(int argc, char const *argv[])
 
     // Loop over each point
     std::cout << "Number of points: " << mesh.points.size() << std::endl;
-    std::cout << "All triangles: " << std::endl;
-    auto counter = 0;
-    for (const auto& triangle: mesh.triangles)
-    {
-        std::cout << "#" << counter << ": " << triangle << std::endl;
-    }
     
-
+    https://theor.xyz/mapgen/delaunay-triangulation-triangle-storage/
     for (const auto& point: mesh.points)
     {
-        std::cout << "Current point P = " << point << std::endl;
+        std::cout << "Current point P: id = " << point->id << ", "<< point.get() << std::endl;
         // Iterate over all triangles, Compare against all formed triangles, 
         for(auto it = mesh.triangles.begin(); it != mesh.triangles.end(); it++)
         {
             std::cout << "mesh.triangles.size()=" << mesh.triangles.size() << std::endl;
-            if (is_point_in_circle(point, *it))
+            if (mesh.is_point_in_circle(point.get(), it->get()))
             {
-                std::cout << "P=" << point << " is inside triangle T=" << *it << std::endl; 
+                std::cout << "P=" << point.get() << " is inside triangle T=" << it->get() << std::endl; 
                 // Create 3 triangles from point P to the current triangles points A, B & C
-                Triangle T1{point, it->A, it->B};
-                Triangle T2{point, it->B, it->C};
-                Triangle T3{point, it->C, it->A};
-                std::cout << "  Creating triangle T1: " << T1 << std::endl;
-                std::cout << "  Creating triangle T2: " << T1 << std::endl;
-                std::cout << "  Creating triangle T3: " << T1 << std::endl;
-                mesh.triangles.push_back(T1);
-                mesh.triangles.push_back(T2);
-                mesh.triangles.push_back(T3);
-                // Create edge from point P to corners of triangle
-                mesh.edges.push_back(Edge{it->A, it->B});
-                mesh.edges.push_back(Edge{it->B, it->C});
-                mesh.edges.push_back(Edge{it->A, it->A});
+                // *it->get()->
+                auto T1 = std::make_unique<Triangle>(point.get(), it->get()->A, it->get()->B);
+                auto T2 = std::make_unique<Triangle>(point.get(), it->get()->B, it->get()->C);
+                auto T3 = std::make_unique<Triangle>(point.get(), it->get()->A, it->get()->C);
+                std::cout << "  Creating triangle T1: \n" << T1.get() << std::endl;
+                std::cout << "  Creating triangle T2: \n" << T1.get() << std::endl;
+                std::cout << "  Creating triangle T3: \n" << T1.get() << std::endl;
+                std::cout << "h1" << std::endl;
+                mesh.triangles.emplace_back(std::move(T1));
+                std::cout << "h2" << std::endl;
+                mesh.triangles.emplace_back(std::move(T2));
+                std::cout << "h3" << std::endl;
+                mesh.triangles.emplace_back(std::move(T3));
+                std::cout << "h4" << std::endl;
+                // // Create edge from point P to corners of triangle
+                // auto e1 = std::make_unique<Edge>{it->A, it->B};
+                // auto e2 = std::make_unique<Edge>{it->B, it->C};
+                // auto e3 = std::make_unique<Edge>{it->A, it->A};
+                // mesh.edges.push_back(std::move(e1));
+                // mesh.edges.push_back(std::move(e2));
+                // mesh.edges.push_back(std::move(e3));
                 // Delete the current triangle
-                mesh.triangles.erase(it);
+                // mesh.triangles.
+                std::cout << "mesh.triangles.size()=" << mesh.triangles.size() << std::endl;
+                // std::cout << "it=" << it->get() << std::endl;
+                // it = mesh.triangles.erase(it);
+                std::cout << "h5" << std::endl;
             }
             else
             {
-                std::cout << "P=" << point << " is NOT inside triangle T=" << *it << std::endl; 
+                std::cout << "P=" << point.get() << " is NOT inside triangle T=" << it->get() << std::endl; 
                 // Continue to next triangle
                 std::cout << "e" << std::endl;
             }
         }
     }
-    std::cout << "f" << std::endl;
-    // Delete super triangle and all triangles that have points on it
-    std::cout << "mesh.triangles.size()=" << mesh.triangles.size() << std::endl;
-    mesh.triangles.erase(mesh.triangles.begin());
-    std::cout << "g" << std::endl;
-    for(auto it = mesh.triangles.begin(); it != mesh.triangles.end();)
+    std::cout << "All triangles after algorithm loop: " << std::endl;
+    auto counter = 0;
+    for (const auto& triangle: mesh.triangles)
     {
-        std::cout << "h" << std::endl;
-        for (const auto point: it->points)
-        {
-            std::cout << "i" << std::endl;
-            // Check if current any point on current triangle is shared by the original super triangle
-            if(std::find(mesh.superTriangle.point_ids.begin(), mesh.superTriangle.point_ids.end(), point.id) != mesh.superTriangle.point_ids.end())
-            {
-                std::cout << "j" << std::endl;
-                mesh.triangles.erase(it);
-                std::cout << "k" << std::endl;
-            }
-        }
+        std::cout << "#" << counter << ": " << triangle.get() << std::endl;
     }
+    // std::cout << "f" << std::endl;
+    // // Delete super triangle and all triangles that have points on it
+    // std::cout << "mesh.triangles.size()=" << mesh.triangles.size() << std::endl;
+    // mesh.triangles.erase(mesh.triangles.begin());
+    // std::cout << "g" << std::endl;
+    // for(auto it = mesh.triangles.begin(); it != mesh.triangles.end();)
+    // {
+    //     std::cout << "h" << std::endl;
+    //     for (const auto point: it->points)
+    //     {
+    //         std::cout << "i" << std::endl;
+    //         // Check if current any point on current triangle is shared by the original super triangle
+    //         if(std::find(mesh.superTriangle.point_ids.begin(), mesh.superTriangle.point_ids.end(), point.id) != mesh.superTriangle.point_ids.end())
+    //         {
+    //             std::cout << "j" << std::endl;
+    //             mesh.triangles.erase(it);
+    //             std::cout << "k" << std::endl;
+    //         }
+    //     }
+    // }
     return 0;
     mesh.print();
 }
