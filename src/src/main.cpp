@@ -28,13 +28,21 @@ public:
     {
         return id == rhs.id;
     }
-    friend std::ostream& operator<<(std::ostream& os, Point* P);
+    friend std::ostream& operator<<(std::ostream& os, Point& P);
 };
 size_t Point::id_counter = 0;
-std::ostream& operator<<(std::ostream& os, Point* P)
+std::ostream& operator<<(std::ostream& os, Point& P)
 {
-    os << "("<< P->x << ", " << P->y << ")";
+    os << "("<< P.x << ", " << P.y << ")";
 }
+class Edge
+{
+public:
+    Point& A;
+    Point& B;
+    Edge(Point& A_, Point& B_): A(A_), B(B_){};
+    ~Edge() = default;
+};
 class Triangle
 {
 public:
@@ -42,6 +50,9 @@ public:
         Point* B;
         Point* C;
         size_t id;
+        std::unique_ptr<Edge> edge1;
+        std::unique_ptr<Edge> edge2;
+        std::unique_ptr<Edge> edge3;
         bool connected_to_super_triangle = false;
         static size_t triangle_counter;
         std::vector<size_t> point_ids;
@@ -63,26 +74,14 @@ public:
         {
             std::cout << "Deleting triangle with id " << id << std::endl;
         };
-        friend std::ostream& operator<<(std::ostream& os, Triangle* T);
+        friend std::ostream& operator<<(std::ostream& os, Triangle& T);
 };
 size_t Triangle::triangle_counter = 0;
-std::ostream& operator<<(std::ostream& os, Triangle* T)
+std::ostream& operator<<(std::ostream& os, Triangle& T)
 {
-    os << "Triangle id = " << T->id << ":\n  " << T->A->x << ", " << T->A->y << "\n  " << T->B->x << ", " << T->B->y << "\n  " << T->C->x << ", " << T->C->y << std::endl;
+    os << "Triangle id = " << T.id << ":\n  " << T.A->x << ", " << T.A->y << "\n  " << T.B->x << ", " << T.B->y << "\n  " << T.C->x << ", " << T.C->y << std::endl;
 }
 
-class Edge
-{
-public:
-    Point* A;
-    Point* B;
-    Edge(Point* A_, Point* B_)
-    {
-        A = A_;
-        B = B_;
-    };
-    ~Edge() = default;
-};
 
 
 class Mesh
@@ -126,13 +125,13 @@ public:
             // Formula for normalization as function of x: (2*(x - x_min)/(x_max - x_min)) - 1
             for (auto& point: points)
             {
-                std::cout << "--- " << point.get() << std::endl;
-                std::cout << "normalizaton of point " << point.get() << std::endl;
+                std::cout << "--- " << *point << std::endl;
+                std::cout << "normalizaton of point " << *point << std::endl;
                 point->x = (2*(point->original_x - x_min)/(x_max - x_min)) - 1;
                 std::cout << "x before: " << point->original_x << ", after: " << point->x << std::endl;
                 point->y = (2*(point->original_y - y_min)/(y_max - y_min)) - 1;
                 std::cout << "y before: " << point->original_y << ", after: " << point->y << std::endl;
-                std::cout << "--- " << point.get() << std::endl;
+                std::cout << "--- " << *point << std::endl;
             }
             
         }
@@ -181,9 +180,9 @@ public:
         {
             std::cout << "Points:" << std::endl;
 
-            for (const auto& point: points)
+            for (auto& point: points)
             {
-                std::cout << point.get() << std::endl;
+                std::cout << *point << std::endl;
             }
             std::cout << "Triangles:" << std::endl;
             for (const auto& triangle: triangles)
@@ -191,14 +190,14 @@ public:
                 std::cout << triangle.get() << std::endl;
             }
         }
-        bool is_point_in_circle(Point* P_, Triangle* T)
+        bool is_point_in_circle(Point& P_, Triangle* T) const
         {
             // is a point D in the circumference of the circles created by points A, B and C?
             // A, B & C refers to the three points of triangle T
-            auto A = id_2_point[T->A->id];
-            auto B = id_2_point[T->B->id];
-            auto C = id_2_point[T->C->id];
-            auto P = id_2_point[P_->id];
+            auto A = id_2_point.at(T->A->id);
+            auto B = id_2_point.at(T->B->id);
+            auto C = id_2_point.at(T->C->id);
+            auto P = id_2_point.at(P_.id);
             const double ax = A->x - P->x;
             const double ay = A->y - P->y;
             const double bx = B->x - P->x;
@@ -247,9 +246,9 @@ int main(int argc, char const *argv[])
     std::cout << "Number of points: " << mesh.points.size() << std::endl;
     
     https://theor.xyz/mapgen/delaunay-triangulation-triangle-storage/
-    for (const auto& point: mesh.points)
+    for (auto& point: mesh.points)
     {
-        std::cout << "Current point P: id = " << point->id << ", "<< point.get() << std::endl;
+        std::cout << "Current point P: id = " << point->id << ", "<< *point << std::endl;
         // Resizing a std::vector invalidates the iterator. Need to either switch to
         // std::list OR reserve enough size at before we take out the iterator.
         mesh.triangles.reserve(1e3);
@@ -257,17 +256,21 @@ int main(int argc, char const *argv[])
         // Iterate over all triangles, Compare against all formed triangles, 
         while(it != mesh.triangles.end())
         {
-            std::cout << " Checking P against current triangle: " << it->get() << std::endl;
-            if (mesh.is_point_in_circle(point.get(), it->get()))
+            std::cout << " Checking P against current triangle: " << &(*it) << std::endl;
+            if (mesh.is_point_in_circle(*point, it->get()))
             {
-                std::cout << "P=" << point.get() << " is inside triangle T=" << it->get() << std::endl; 
+                std::cout << "P=" << *point << " is inside triangle T=" << &(*it) << std::endl;
                 // Create 3 triangles from point P to the current triangles points A, B & C
                 auto T1 = std::make_unique<Triangle>(point.get(), it->get()->A, it->get()->B);
                 auto T2 = std::make_unique<Triangle>(point.get(), it->get()->B, it->get()->C);
                 auto T3 = std::make_unique<Triangle>(point.get(), it->get()->A, it->get()->C);
-                std::cout << "  Creating triangle T1: \n" << T1.get() << std::endl;
-                std::cout << "  Creating triangle T2: \n" << T2.get() << std::endl;
-                std::cout << "  Creating triangle T3: \n" << T3.get() << std::endl;
+                // std::cout << "  Creating triangle T1: \n" << T1.get() << std::endl;
+                // std::cout << "  Creating triangle T2: \n" << T2.get() << std::endl;
+                // std::cout << "  Creating triangle T3: \n" << T3.get() << std::endl;
+                // Now we want to find adjacent triangles to T1, T2 & T3.
+                // We do that by checking which other triangles share an Edge element with our new triangles.
+                // This function should return adjacent triangles given an edge
+                // auto adjacent1 mesh.edge2Triangles(T1.edges);
                 for (auto& t : {T1.get(), T2.get(), T3.get()})
                 {
                     // Check if any points on newly formed triangle is from the original super triangle
@@ -290,7 +293,7 @@ int main(int argc, char const *argv[])
             }
             else
             {
-                std::cout << "P=" << point.get() << " is NOT inside triangle T=" << it->get() << std::endl; 
+                std::cout << "P=" << *point << " is NOT inside triangle T=" << *(it->get()) << std::endl; 
                 
                 // Continue to next triangle
                 ++it;
@@ -299,11 +302,12 @@ int main(int argc, char const *argv[])
         }
     }
     std::cout << "All triangles after algorithm loop: " << std::endl;
-    auto counter = 0;
+    auto counter = 1;
     // Delete all triangles that contains points from the super triangle
     for (const auto& triangle: mesh.triangles)
     {
-        std::cout << "#" << counter << ": " << triangle.get() << std::endl;
+        std::cout << "#" << counter << ": " << *triangle << std::endl;
+        counter++;
     }
     // std::cout << "f" << std::endl;
     std::cout << "g" << std::endl;
