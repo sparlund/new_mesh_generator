@@ -38,9 +38,13 @@ std::ostream& operator<<(std::ostream& os, Point& P)
 class Edge
 {
 public:
-    Point& A;
-    Point& B;
-    Edge(Point& A_, Point& B_): A(A_), B(B_){};
+    Point* A;
+    Point* B;
+    Edge(Point* A_, Point* B_)
+    {
+        A = A_;
+        B = B_;
+    }
     ~Edge() = default;
 };
 class Triangle
@@ -50,9 +54,6 @@ public:
         Point* B;
         Point* C;
         size_t id;
-        std::unique_ptr<Edge> edge1;
-        std::unique_ptr<Edge> edge2;
-        std::unique_ptr<Edge> edge3;
         bool connected_to_super_triangle = false;
         static size_t triangle_counter;
         std::vector<size_t> point_ids;
@@ -61,6 +62,7 @@ public:
             A = A_;
             B = B_;
             C = C_;
+            // When creating a new triangle, we want to see what adjacent triangles it has
             id = triangle_counter;
             triangle_counter++;
             std::cout << "triangle counter = " << triangle_counter << std::endl;
@@ -109,12 +111,15 @@ public:
             id_2_point[temp->id] = temp.get();
             points.emplace_back(std::move(temp));
         }
-        std::unordered_map<size_t, Point*>      id_2_point;
-        std::vector<std::unique_ptr<Point>>     points;
-        std::vector<std::unique_ptr<Point>>     superTriangle_points;
-        std::vector<size_t>    superTriangle_points_ids;
-        std::vector<std::unique_ptr<Triangle>>  triangles;
-        std::vector<std::unique_ptr<Edge>>      edges;
+        // Mesh owns all points & triangles and how they're connected.
+        std::unordered_map<size_t, Point*>                   id_2_point;
+        std::vector<std::unique_ptr<Point>>                  points;
+        std::vector<std::unique_ptr<Point>>                  superTriangle_points;
+        std::vector<size_t>                                  superTriangle_points_ids;
+        std::vector<std::unique_ptr<Triangle>>               triangles;
+        std::vector<std::unique_ptr<Edge>>                   edges;
+        // Triangles does own edges, the mesh keeps track of that.
+        std::unordered_map<Edge*, std::vector<Triangle*>>    adjacent_edges_on_other_triangles;
         double x_max = 0, y_max = 0, x_min = 0, y_min = 0;
         double normaliziation_factor_x, normaliziation_factor_y;
         Mesh() {};
@@ -164,16 +169,59 @@ public:
             super_triangle->B->y = B->original_y;
             super_triangle->C->x = C->original_x;
             super_triangle->C->y = C->original_y;
-
+            super_triangle->connected_to_super_triangle = true;
             id_2_point[A->id] = A.get();
             id_2_point[B->id] = B.get();
             id_2_point[C->id] = C.get();
             std::cout << "superTriangle:\n" << super_triangle.get() << std::endl;
             superTriangle_points_ids.insert(superTriangle_points_ids.begin(), {A->id, B->id, C->id});
+
             superTriangle_points.emplace_back(std::move(A));
             superTriangle_points.emplace_back(std::move(B));
             superTriangle_points.emplace_back(std::move(C));
-            triangles.emplace_back(std::move(super_triangle));
+            add_triangle_to_mesh(std::move(super_triangle));
+
+        }
+        bool edge_exists(Point* p1, Point* p2)
+        {
+            for(const auto& edge: edges)
+            {
+                if ((p1->id == edge->A->id && p2->id == edge->B->id) || (p2->id == edge->A->id && p1->id == edge->B->id))
+                {
+                    // this edge already exists!
+                    return true;
+                }
+            }
+            return false;
+            
+        }
+        void add_triangle_to_mesh(std::unique_ptr<Triangle> T)
+        {
+            // Go through all edges of triangle T and add to map
+            // Create 3 unique_ptr edges
+            // First check which this edge already exists.
+            if(!edge_exists(T->A,T->B))
+            {
+                auto edge1 = std::make_unique<Edge>(T->A,T->B);
+                adjacent_edges_on_other_triangles[edge1.get()].push_back(T.get());
+                edges.emplace_back(std::move(edge1));
+            }
+            if(!edge_exists(T->A,T->B))
+            {
+                auto edge2 = std::make_unique<Edge>(T->B,T->C);
+                adjacent_edges_on_other_triangles[edge2.get()].push_back(T.get());
+                edges.emplace_back(std::move(edge2));
+            }
+            if(!edge_exists(T->A,T->B))
+            {
+                auto edge3 = std::make_unique<Edge>(T->A,T->C);
+                adjacent_edges_on_other_triangles[edge3.get()].push_back(T.get());
+                edges.emplace_back(std::move(edge3));
+            }
+            triangles.emplace_back(std::move(T));
+        }
+        void add_edges(Triangle& T)
+        {
 
         }
         void print()
@@ -271,9 +319,11 @@ int main(int argc, char const *argv[])
                 // We do that by checking which other triangles share an Edge element with our new triangles.
                 // This function should return adjacent triangles given an edge
                 // auto adjacent1 mesh.edge2Triangles(T1.edges);
+                
+                // Check if any points on newly formed triangles is from the original super triangle
+                // This is a stupid place to do this. Should be done last or in ctor?
                 for (auto& t : {T1.get(), T2.get(), T3.get()})
                 {
-                    // Check if any points on newly formed triangle is from the original super triangle
                     if (std::find_first_of(t->point_ids.begin(),
                                            t->point_ids.end(),
                                            mesh.superTriangle_points_ids.begin(),
