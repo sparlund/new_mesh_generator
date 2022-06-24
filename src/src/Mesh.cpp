@@ -73,7 +73,7 @@ void Mesh::init_superTriangle()
     id_2_point[A->id] = A.get();
     id_2_point[B->id] = B.get();
     id_2_point[C->id] = C.get();
-    std::cout << "superTriangle:\n" << super_triangle.get() << std::endl;
+    std::cout << "superTriangle:\n" << *super_triangle << std::endl;
     superTriangle_points_ids.insert(superTriangle_points_ids.begin(), {A->id, B->id, C->id});
 
     superTriangle_points.emplace_back(std::move(A));
@@ -122,25 +122,25 @@ void Mesh::add_triangle_to_mesh(std::unique_ptr<Triangle> T)
     {
         // Does not matter which order I give points to the ctor for an Edge
         auto edge1 = std::make_unique<Edge>(T->A,T->B);
-        std::cout << "Creating edge " << T->A->id << " to " << T->B->id << std::endl;
         auto pair = std::pair<Point*, Point*>(T->A,T->B);
-        points_2_triangle[pair] = T.get();
+        points_2_edge[pair] = edge1.get();
+        edge_2_Triangles[edge1.get()].push_back(T.get());
         edges.emplace_back(std::move(edge1));
     }
     if(!edge_exists(T->B,T->C))
     {
         auto edge2 = std::make_unique<Edge>(T->B,T->C);
-        std::cout << "Creating edge " << T->B->id << " to " << T->C->id << std::endl;
         auto pair = std::pair<Point*, Point*>(T->B,T->C);
-        points_2_triangle[std::move(pair)] = T.get();
+        points_2_edge[pair] = edge2.get();
+        edge_2_Triangles[edge2.get()].push_back(T.get());
         edges.emplace_back(std::move(edge2));
     }
     if(!edge_exists(T->A,T->C))
     {
         auto edge3 = std::make_unique<Edge>(T->A,T->C);
-        std::cout << "Creating edge " << T->A->id << " to " << T->C->id << std::endl;
         auto pair = std::pair<Point*, Point*>(T->A,T->C);
-        points_2_triangle[std::move(pair)] = T.get();
+        points_2_edge[pair] = edge3.get();
+        edge_2_Triangles[edge3.get()].push_back(T.get());
         edges.emplace_back(std::move(edge3));
     }
     triangles.emplace_back(std::move(T));
@@ -157,7 +157,7 @@ void Mesh::print()
     std::cout << "Triangles:" << std::endl;
     for (const auto& triangle: triangles)
     {
-        std::cout << triangle.get() << std::endl;
+        std::cout << *triangle << std::endl;
     }
 };
 bool Mesh::is_point_in_circle(Point& P_, Triangle* T) const
@@ -178,5 +178,24 @@ bool Mesh::is_point_in_circle(Point& P_, Triangle* T) const
             (bx*bx + by*by) * (ax*cy-cx*ay) +
             (cx*cx + cy*cy) * (ax*by-bx*ay)
         ) > 0.0d;
-    };
+};
+
+void Mesh::swap(Point*, Triangle*)
+{
+
+
+};
+void Mesh::remove_triangle_from_mesh(Triangle* T)
+{
+    // 2. Remove this triangle list member Triangles
+    // 3. Remove element from edge_2_triangles
+    for (size_t i = 0; i < triangles.size(); i++)
+    {
+        if (triangles.at(i)->id == T->id)
+        {
+            triangles.erase(i);
+        }
+    }
+};
+
 

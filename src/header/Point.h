@@ -7,6 +7,7 @@ public:
     static size_t id_counter;
     // normalized values
     double x,y;
+    // inital values before normalization
     const double original_x,original_y;
     size_t id;
     Point(double x_ = 0.0d, double y_ = 0.0d):original_x(x_), original_y(y_)
@@ -18,7 +19,7 @@ public:
     Point& operator=(const Point&) = default;
     ~Point()
     {
-        std::cout << "deleting point with id = " << id << std::endl;
+        std::cout << "Point dtor for id = " << id << std::endl;
     };
     bool operator==(const Point& rhs)
     {

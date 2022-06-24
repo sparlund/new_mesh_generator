@@ -8,6 +8,7 @@
 #include <memory>
 
 
+// TODO: move over implementation to cpp file
 // Used for hashing pairs of Points
 class Hasch_point_pair
 {
@@ -35,6 +36,8 @@ public:
     }
 };
 
+
+
 class Mesh
 {
 public:
@@ -46,9 +49,8 @@ public:
         std::vector<size_t>                                  superTriangle_points_ids;
         std::vector<std::unique_ptr<Triangle>>               triangles;
         std::vector<std::unique_ptr<Edge>>                   edges;
-        // Triangles does not own edges, the mesh keeps track of that.
-        // Måste berätta för datorn hur man hashar Point*!!!!
-        std::unordered_map<std::pair<Point*, Point*>, Triangle*, Hasch_point_pair, Equal_point_comparator> points_2_triangle;
+        std::unordered_map<Edge*, std::vector<Triangle*>>    edge_2_Triangles;
+        std::unordered_map<std::pair<Point*, Point*>, Edge*, Hasch_point_pair, Equal_point_comparator> points_2_edge;
         double x_max = 0, y_max = 0, x_min = 0, y_min = 0;
         double normaliziation_factor_x, normaliziation_factor_y;
         Mesh() = default;
@@ -58,6 +60,8 @@ public:
         Edge* get_edge(Point* p1, Point* p2);
         bool edge_exists(Point* p1, Point* p2);
         void add_triangle_to_mesh(std::unique_ptr<Triangle> T);
+        void remove_triangle_from_mesh(std::unique_ptr<Triangle> T);
         void print();
         bool is_point_in_circle(Point& P_, Triangle* T) const;
+        void swap(Point*, Triangle*);
 };
