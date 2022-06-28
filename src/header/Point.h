@@ -8,12 +8,12 @@ public:
     // normalized values
     double x,y;
     // inital values before normalization
-    const double original_x,original_y;
+    double original_x,original_y;
     size_t id;
     Point(double x_ = 0.0d, double y_ = 0.0d):original_x(x_), original_y(y_)
     {
-        std::cout << "Point ctor" << std::endl;
         id = id_counter;
+        std::cout << "Point ctor, id = " << id << ", at x=" << original_x << ", y=" << original_y  << std::endl;
         id_counter++;
     };
     Point& operator=(const Point&) = default;

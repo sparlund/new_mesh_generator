@@ -21,6 +21,7 @@ void Mesh::add_point(double x, double y)
     }
     auto temp = std::make_unique<Point>(x, y);
     id_2_point[temp->id] = temp.get();
+    std::cout << "Adding id " << temp->id << " to id_2_point, --> id_2_point["<< temp->id << "]" << "=" << temp.get() << std::endl;
     points.emplace_back(std::move(temp));
 };
 
@@ -44,8 +45,16 @@ void Mesh::init_superTriangle()
 {
     // With normalized points the super triangle will be the same size every time!
     auto A = std::make_unique<Point>(-3.0d,-3.0d);
+    std::cout << "Adding id " << A->id << " to id_2_point, --> id_2_point["<< A->id << "]" << "=" << A.get() << std::endl;
+    id_2_point[A->id] = A.get();
+    
     auto B = std::make_unique<Point>(3.0d,-3.0d);
+    std::cout << "Adding id " << B->id << " to id_2_point, --> id_2_point["<< B->id << "]" << "=" << B.get() << std::endl;
+    id_2_point[B->id] = B.get();
+    
     auto C = std::make_unique<Point>(0.0d,3.0);
+    std::cout << "Adding id " << C->id << " to id_2_point, --> id_2_point["<< C->id << "]" << "=" << C.get() << std::endl;
+    id_2_point[C->id] = C.get();
     // double x_mid = (x_max + x_min)/2.0d;
     // double y_mid = (y_max + y_min)/2.0d;
     // double dx = x_max - x_min;
@@ -61,89 +70,23 @@ void Mesh::init_superTriangle()
     // auto A = std::make_unique<Point>(x_mid - (2*dmax), y_mid - dmax);
     // auto B = std::make_unique<Point>(x_mid, y_mid + (2*dmax));
     // auto C = std::make_unique<Point>(x_mid + (2*dmax), y_mid - dmax);
-    auto super_triangle = std::make_unique<Triangle>(A.get(), B.get(), C.get());
+    auto super_triangle = Triangle{A.get(), B.get(), C.get()};
     // this is retarted, TODO
-    super_triangle->A->x = A->original_x;
-    super_triangle->A->y = A->original_y;
-    super_triangle->B->x = B->original_x;
-    super_triangle->B->y = B->original_y;
-    super_triangle->C->x = C->original_x;
-    super_triangle->C->y = C->original_y;
-    super_triangle->connected_to_super_triangle = true;
-    id_2_point[A->id] = A.get();
-    id_2_point[B->id] = B.get();
-    id_2_point[C->id] = C.get();
-    std::cout << "superTriangle:\n" << *super_triangle << std::endl;
-    superTriangle_points_ids.insert(superTriangle_points_ids.begin(), {A->id, B->id, C->id});
+    super_triangle.A->x = A->original_x;
+    super_triangle.A->y = A->original_y;
+    super_triangle.B->x = B->original_x;
+    super_triangle.B->y = B->original_y;
+    super_triangle.C->x = C->original_x;
+    super_triangle.C->y = C->original_y;
 
     superTriangle_points.emplace_back(std::move(A));
     superTriangle_points.emplace_back(std::move(B));
     superTriangle_points.emplace_back(std::move(C));
     // The supertriangle's edges should not be considered real edges,
     // so let's not call add_triangle_to_mesh() but rather add it manually.
-    add_triangle_to_mesh(std::move(super_triangle));
-    // triangles.emplace_back(std::move(super_triangle));
-};
-
-Edge* Mesh::get_edge(Point* p1, Point* p2)
-{
-    for(const auto& edge: edges)
-    {
-        if ((p1->id == edge->A->id && p2->id == edge->B->id) || (p2->id == edge->A->id && p1->id == edge->B->id))
-        {
-            // this edge already exists!
-            std::cout << "Edge " << p1->id << " to " << p2->id << " exist!" << std::endl;
-            return edge.get();
-        }
-    }
-    return nullptr;
-};
-
-bool Mesh::edge_exists(Point* p1, Point* p2)
-{
-    // This is stupid! Should use a hash map, something like points_2_edge that takes a pair of 
-    // points and return the edge if it exists.
-    for(const auto& edge: edges)
-    {
-        if ((p1->id == edge->A->id && p2->id == edge->B->id) || (p2->id == edge->A->id && p1->id == edge->B->id))
-        {
-            // this edge already exists!
-            std::cout << "Edge " << p1->id << " to " << p2->id << " already exist!" << std::endl;
-            return true;
-        }
-    }
-    return false;
-};
-void Mesh::add_triangle_to_mesh(std::unique_ptr<Triangle> T)
-{
-    // Go through all edges of triangle T and add to map.
-    // First check which this edge already exists.
-    if(!edge_exists(T->A,T->B))
-    {
-        // Does not matter which order I give points to the ctor for an Edge
-        auto edge1 = std::make_unique<Edge>(T->A,T->B);
-        auto pair = std::pair<Point*, Point*>(T->A,T->B);
-        points_2_edge[pair] = edge1.get();
-        edge_2_Triangles[edge1.get()].push_back(T.get());
-        edges.emplace_back(std::move(edge1));
-    }
-    if(!edge_exists(T->B,T->C))
-    {
-        auto edge2 = std::make_unique<Edge>(T->B,T->C);
-        auto pair = std::pair<Point*, Point*>(T->B,T->C);
-        points_2_edge[pair] = edge2.get();
-        edge_2_Triangles[edge2.get()].push_back(T.get());
-        edges.emplace_back(std::move(edge2));
-    }
-    if(!edge_exists(T->A,T->C))
-    {
-        auto edge3 = std::make_unique<Edge>(T->A,T->C);
-        auto pair = std::pair<Point*, Point*>(T->A,T->C);
-        points_2_edge[pair] = edge3.get();
-        edge_2_Triangles[edge3.get()].push_back(T.get());
-        edges.emplace_back(std::move(edge3));
-    }
-    triangles.emplace_back(std::move(T));
+    // add_triangle_to_mesh(std::move(super_triangle));
+    triangles.push_back(std::move(super_triangle));
+    std::cout << " dödar vi triangel nu för den går out of scope?" << std::endl;
 };
 
 void Mesh::print()
@@ -155,18 +98,18 @@ void Mesh::print()
         std::cout << *point << std::endl;
     }
     std::cout << "Triangles:" << std::endl;
-    for (const auto& triangle: triangles)
+    for (auto& triangle: triangles)
     {
-        std::cout << *triangle << std::endl;
+        std::cout << triangle << std::endl;
     }
 };
-bool Mesh::is_point_in_circle(Point& P_, Triangle* T) const
+bool Mesh::is_point_in_circle(Point& P_, Triangle& T) const
 {
     // is a point D in the circumference of the circles created by points A, B and C?
     // A, B & C refers to the three points of triangle T
-    auto A = id_2_point.at(T->A->id);
-    auto B = id_2_point.at(T->B->id);
-    auto C = id_2_point.at(T->C->id);
+    auto A = id_2_point.at(T.A->id);
+    auto B = id_2_point.at(T.B->id);
+    auto C = id_2_point.at(T.C->id);
     auto P = id_2_point.at(P_.id);
     const double ax = A->x - P->x;
     const double ay = A->y - P->y;
@@ -185,17 +128,12 @@ void Mesh::swap(Point*, Triangle*)
 
 
 };
-void Mesh::remove_triangle_from_mesh(Triangle* T)
+
+bool Mesh::are_edges_equal(Edge& e1, Edge& e2)
 {
-    // 2. Remove this triangle list member Triangles
-    // 3. Remove element from edge_2_triangles
-    for (size_t i = 0; i < triangles.size(); i++)
+    if ((e1.A->id == e2.A->id && e1.B->id == e2.B->id) || (e1.A->id == e2.B->id && e1.B->id == e2.A->id))
     {
-        if (triangles.at(i)->id == T->id)
-        {
-            triangles.erase(i);
-        }
+        return true;
     }
+    return false;
 };
-
-
