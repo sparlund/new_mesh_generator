@@ -122,6 +122,7 @@ int main(int argc, char const *argv[])
     size_t stAid = mesh.triangles[0].A->id;
     size_t stBid = mesh.triangles[0].B->id;
     size_t stCid = mesh.triangles[0].C->id;
+    std::vector<Point*> stp = {mesh.triangles[0].A, mesh.triangles[0].B, mesh.triangles[0].C};
     std::vector<size_t> stIds = {stAid,stBid,stCid};
 
     // Loop over each point
@@ -130,9 +131,6 @@ int main(int argc, char const *argv[])
         std::cout << "Current point P: id = " << point->id << ", "<< *point << std::endl;
         std::cout << "mesh.triangles.size() = " << mesh.triangles.size() << std::endl;
         std::cout << "mesh.points.size() = " << mesh.points.size() << std::endl;
-        // Resizing a std::vector invalidates the iterator. Need to either switch to
-        // std::list OR reserve enough size at before we take out the iterator.
-        // mesh.triangles.reserve(1e3);
         std::vector<Edge> edges;
         // Iterate over all triangles, compare against all formed triangles.
         // TODO: split points into bins and make this loop search a limited number of triangles or in a smart order
@@ -155,6 +153,7 @@ int main(int argc, char const *argv[])
                                 mesh.triangles.end(),
                                 [](Triangle& T)
                                 {
+                                    // TODO: remove T from maps of adjacent triangles
                                     return T.is_bad;
                                 }),
                                 mesh.triangles.end());
@@ -181,28 +180,35 @@ int main(int argc, char const *argv[])
         // Create new triangles from non-bad edges
         for (auto& edge: edges)
         {
-            // auto T = ;
+            // TODO: add new triangle to map of adjacent triangles
             mesh.triangles.emplace_back(Triangle(edge.A, edge.B, point.get()));
             std::cout << "tror vi dödar T här, men mesh.triangles.size()=" << mesh.triangles.size() << std::endl;
         }
     }
-    std::cout << "Before deletion due to connected to super triangle: " << std::endl;
-    // mesh.print();
     // Clean up triangles connected to supertriangle
-    // supertriangle should always be index 0 in mesh.triangles lol
     mesh.triangles.erase(std::remove_if(mesh.triangles.begin(),
                                         mesh.triangles.end(),
-                                        [stIds](Triangle& T)
+                                        [stp](Triangle& T)
                                         {
                                             std::cout << "should we remove T.id = " << T.id <<"? T.A->id, T.A->id, T.A->id = " << T.A->id << " " << T.B->id << " " << T.C->id << std::endl;
-                                            if (std::count(stIds.begin(), stIds.end(), T.A->id) | std::count(stIds.begin(), stIds.end(), T.B->id)  | std::count(stIds.begin(), stIds.end(), T.C->id))
+                                            for (const auto& p: stp)
                                             {
-                                                std::cout << "yes we remove!" << std::endl;
-                                                return true;
+                                                if (T.contains_point(*p))
+                                                {
+                                                    // TODO: remove triangle from map of adjacent triangles
+                                                    std::cout << "yes we remove!" << std::endl;
+                                                    return true;
+                                                }
+                                                
                                             }
                                             std::cout << "--" << std::endl;
                                         }),
                                         mesh.triangles.end());
+    // Now we've completed a the Delaunay triangulation, now let's introduce constraints to it.
+    // --> Making it a constrained Delaunay triangulation
+    // Constrained edges, has to be user input:
+    std::vector<Edge> constrained_edges;
+
     std::cout << "After algorithm loop: " << std::endl;
     mesh.print();
     return 0;

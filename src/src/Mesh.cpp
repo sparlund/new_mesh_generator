@@ -137,3 +137,14 @@ bool Mesh::are_edges_equal(Edge& e1, Edge& e2)
     }
     return false;
 };
+bool Mesh::is_point_to_the_right_of_edge(Point&, Edge&)
+{
+    // Return true if cross(AB, AP)<0, else false because point is to the left of edge
+    // float AB = (P.y-A.y)*(A.x-A.x) - (P.x-A.x)*(A.y-A.y);
+    // float BC = (P.y-B.y)*(B.x-B.x) - (P.x-B.x)*(B.y-B.y);
+    // float CA = (P.y-C.y)*(C.x-C.x) - (P.x-C.x)*(C.y-C.y);
+    // Cross product 2D:
+    // | i j |
+    // | k l | --> cross(vector(i,j),vector(k,l)) = il - kj
+
+}

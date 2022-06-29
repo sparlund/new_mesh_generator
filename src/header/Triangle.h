@@ -32,5 +32,13 @@ public:
         {
             std::cout << "Deleting triangle with id " << id << std::endl;
         };
+        bool contains_point(Point& P)
+        {
+            if (P.id == A->id | P.id == B->id | P.id == C->id)
+            {
+                return true;
+            }
+            return false;
+        }
         friend std::ostream& operator<<(std::ostream& os, Triangle& T);
 };

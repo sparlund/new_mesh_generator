@@ -28,4 +28,5 @@ public:
         bool is_point_in_circle(Point& P_, Triangle& T) const;
         void swap(Point*, Triangle*);
         bool are_edges_equal(Edge&, Edge&);
+        static bool is_point_to_the_right_of_edge(Point&, Edge&);
 };
