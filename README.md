@@ -4,7 +4,7 @@ Given a point cloud, this program construct a Delaunay triangulation mesh betwee
 
 
 ## Example with 100 points
-
+<img src="output.gif"/>
 
 # TODO:
 - [ ] Enable constrained edges between points, such that the shape could have holes in it
