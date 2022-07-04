@@ -11,9 +11,6 @@
 #include "../header/Triangle.h"
 #include "../header/Edge.h"
 
-
-// https://www.newcastle.edu.au/__data/assets/pdf_file/0019/22519/23_A-fast-algortithm-for-generating-constrained-Delaunay-triangulations.pdf
-
 int main(int argc, char const *argv[])
 {
     Mesh mesh;
@@ -129,8 +126,6 @@ int main(int argc, char const *argv[])
     for (auto& point: mesh.points)
     {
         std::cout << "Current point P: id = " << point->id << ", "<< *point << std::endl;
-        std::cout << "mesh.triangles.size() = " << mesh.triangles.size() << std::endl;
-        std::cout << "mesh.points.size() = " << mesh.points.size() << std::endl;
         std::vector<Edge> edges;
         // Iterate over all triangles, compare against all formed triangles.
         // TODO: split points into bins and make this loop search a limited number of triangles or in a smart order
@@ -182,7 +177,6 @@ int main(int argc, char const *argv[])
         {
             // TODO: add new triangle to map of adjacent triangles
             mesh.triangles.emplace_back(Triangle(edge.A, edge.B, point.get()));
-            std::cout << "tror vi dödar T här, men mesh.triangles.size()=" << mesh.triangles.size() << std::endl;
         }
     }
     // Clean up triangles connected to supertriangle
@@ -207,9 +201,28 @@ int main(int argc, char const *argv[])
     // Now we've completed a the Delaunay triangulation, now let's introduce constraints to it.
     // --> Making it a constrained Delaunay triangulation
     // Constrained edges, has to be user input:
-    std::vector<Edge> constrained_edges;
-
-    std::cout << "After algorithm loop: " << std::endl;
+    std::cout << "After Delaunay triangulation but before constrains: " << std::endl;
     mesh.print();
+    std::vector<std::pair<Point*, Point*>> constrained_edges;
+    // manually constrain some edges. In a real case it should be all outer edges and all inner edges (like holes)
+    constrained_edges.emplace_back(mesh.points.at(0).get(),mesh.points.at(1).get());
+    // Find each edge that intersect the constrained edge
+    for (auto& constrained_edge: constrained_edges)
+    {
+        for (auto& edge: edges)
+        {
+            // need to create this map lol
+            auto T1_T2 = mesh.get_triangles_from_edge[edge];
+            // If the two triangles that share the current constrained edge is a convex quadrilateral --> swap edges
+            if (mesh.is_quadrilateral_convex())
+            {
+
+            }
+        }
+    }
+
+    // std::cout << "After Delaunay triangulation with constrains: " << std::endl;
+    // mesh.print();
+    mesh.output_to_abaqus_format();
     return 0;
 }

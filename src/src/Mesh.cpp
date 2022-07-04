@@ -1,5 +1,5 @@
 #include "../header/Mesh.h"
-
+#include <fstream>
 
 void Mesh::add_point(double x, double y)
 {
@@ -137,14 +137,135 @@ bool Mesh::are_edges_equal(Edge& e1, Edge& e2)
     }
     return false;
 };
-bool Mesh::is_point_to_the_right_of_edge(Point&, Edge&)
+double dot(Edge& e1, Edge& e2)
 {
-    // Return true if cross(AB, AP)<0, else false because point is to the left of edge
-    // float AB = (P.y-A.y)*(A.x-A.x) - (P.x-A.x)*(A.y-A.y);
-    // float BC = (P.y-B.y)*(B.x-B.x) - (P.x-B.x)*(B.y-B.y);
-    // float CA = (P.y-C.y)*(C.x-C.x) - (P.x-C.x)*(C.y-C.y);
+    // return the dot product of two vectors
+    double ux = e1.A->x - e1.B->x;
+    double vx = e2.A->x - e2.B->x;
+    double uy = e1.A->y - e1.B->y;
+    double vy = e2.A->y - e2.B->y;
+    return (ux*vx) + uy*vy;
+
+}
+
+double cross(double i, double j, double k, double l)
+{
+    // where i,j are the x&y component of vector 1, etc
     // Cross product 2D:
     // | i j |
     // | k l | --> cross(vector(i,j),vector(k,l)) = il - kj
+    return ((i*l) - (k*j));
+}
+double cross(Point* A1,Point* B1,Point* A2,Point* B2)
+{
+
+    return cross(A1->x - B1->x,A1->y - B1->y,A2->x - B2->x,A2->y - B2->y);
+}
+bool Mesh::is_point_to_the_right_of_edge(Point& P, Edge& e)
+{
+    // Return true if cross(AB, AP)<0, else false because point is to the left of edge
+    //    B  x
+    //       |
+    //       |     x P
+    //       |
+    //    A  x
+    double i = e.B->x - e.A->x;
+    double j = P.x - e.A->x;
+    double k = e.B->y - e.A->y;
+    double l = P.y - e.A->y;
+    // if equal to zero they are co-linear. if larger than zero the point is to the left of the line.
+    return ((i*l) - (k*l)) < 0;
+}
+bool Mesh::do_edges_intersect(Edge& e1, Edge& e2)
+{
+    // for edges to cross one another the two conditions must be true:
+    // dot(cross(a1b1,b1b2),cross(a1b1,b1a2)) < 0
+    // dot(cross(a2b2,b2b1),cross(a2b2,b2a1)) < 0
+    //       x b1
+    // b2    |
+    // x-----|-----x a2
+    //       |
+    //       |
+    //       x a1
+    // index 1 is e1 lol
+    // a is A, b is B
+    // where a1b1 is e1.A,e1.B
+    // ALTERNATIVE METHOD from https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/1968345#1968345
+    float p0_x = e1.A->x;
+    float p0_y = e1.A->y;
+
+    float p1_x = e1.B->x;
+    float p1_y = e1.B->y;
+
+    float p2_x = e2.A->x;
+    float p2_y = e2.A->y;
+
+    float p3_x = e2.B->x;
+    float p3_y = e2.B->y;
+
+    float s1_x, s1_y, s2_x, s2_y;
+    s1_x = p1_x - p0_x;     s1_y = p1_y - p0_y;
+    s2_x = p3_x - p2_x;     s2_y = p3_y - p2_y;
+
+    float s, t;
+    s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
+    t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
+
+    if (s >= 0 && s <= 1 && t >= 0 && t <= 1)
+    {
+        // Collision detected
+        return true;
+    }
+    return false;
+}
+
+bool sign(double& a)
+{
+    if(a>0.0d)
+    {
+        return true;
+    }
+    return false;
+}
+
+bool Mesh::is_quadrilateral_convex(Point* A,Point* B, Point* C, Point* D)
+{
+    //    D x-------x C
+    //     /       /
+    //    /       /
+    //   x-------x
+    //   A       B
+    // Return true if the square made up by the two triangles is convex.
+    // --> all for sides must get the same sign from equation cross(side_i,side_i+1)
+    double sideA_B = cross(A, B, B, C);
+    double sideB_C = cross(B, C, C, D);
+    double sideC_D = cross(C, D, D, A);
+    double sideD_A = cross(D, A, A, B);
+    // Check if either all 4 are negative or all 4 positive
+    if((sign(sideA_B) == true &&  sign(sideB_C) == true  && sign(sideC_D) == true  && sign(sideD_A) == true) ||
+       (sign(sideA_B) == false && sign(sideB_C) == false && sign(sideC_D) == false && sign(sideD_A) == false))
+    {
+        return true;
+    }
+    return false;
+}
+
+void Mesh::output_to_abaqus_format()
+{
+    // Print all points as nodes
+    // Prints all element as simple trias
+    std::string filename = "hej.txt";
+    std::ofstream output(filename);
+    output << "*NODE" << std::endl;
+    for (const auto& p: points)
+    {
+        output << p->id << "," << p->x << "," << p->y << ", 0.0" << std::endl;
+    }
+    output << "*ELEMENT, TYPE=CPS3, ELSET=pid" << std::endl;
+    for (const auto& T: triangles)
+    {
+        output << T.id << "," << T.A->id << "," << T.B->id << "," << T.C->id << std::endl;
+    }
+    output.close();
 
 }

@@ -28,5 +28,8 @@ public:
         bool is_point_in_circle(Point& P_, Triangle& T) const;
         void swap(Point*, Triangle*);
         bool are_edges_equal(Edge&, Edge&);
-        static bool is_point_to_the_right_of_edge(Point&, Edge&);
+        bool is_point_to_the_right_of_edge(Point&, Edge&);
+        bool do_edges_intersect(Edge&, Edge&);
+        bool is_quadrilateral_convex(Triangle&, Triangle&);
+        void output_to_abaqus_format();
 };

@@ -20,6 +20,8 @@ public:
         Triangle() = default;
         Triangle(const Triangle&) = default;
         Triangle(Triangle&&) = default;
+        // Does this qualify as defining the triangle clockwise?
+        // A->B->C
         Triangle(Point* A_,Point* B_,Point* C_)
         :A(A_), B(B_), C(C_)
         {
